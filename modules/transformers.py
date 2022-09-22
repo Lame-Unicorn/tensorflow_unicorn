@@ -41,13 +41,13 @@ def get_encoder_block(layer_input,
     return output
 
 
-class CompositeEmbedding(keras.layers.Layer):
+class BertEmbedding(keras.layers.Layer):
     def __init__(self, vocab_size,
                  hidden_size=768, type_vocab_size=2,
                  initializer_range=0.02, hidden_dropout_prob=0.1,
                  max_position_embeddings=512, use_token_type_embeddings=True,
                  use_layer_norm=True, mask_zero=True, **kwargs):
-        super(CompositeEmbedding, self).__init__(**kwargs)
+        super(BertEmbedding, self).__init__(**kwargs)
         self._vocab_size = vocab_size
         self._hidden_size = hidden_size
         self._type_vocab_size = type_vocab_size
@@ -126,7 +126,7 @@ class CompositeEmbedding(keras.layers.Layer):
             return input_shape.concatenate(self._hidden_size)
 
     def get_config(self):
-        config = super(CompositeEmbedding, self).get_config()
+        config = super(BertEmbedding, self).get_config()
         config.update({
             "vocab_size": self._vocab_size,
             "hidden_size": self._hidden_size,

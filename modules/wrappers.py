@@ -1,5 +1,6 @@
 import tensorflow as tf
 from tensorflow import keras
+from tensorflow.python.keras.engine.data_adapter import unpack_x_y_sample_weight
 
 
 class MLMTrainer(keras.Model):
@@ -40,3 +41,38 @@ class SimCSETrainer(keras.Model):
         embed2 = self.decomposition(self.pooler(self.model(inputs, training=training)))
         sim_mat = -keras.losses.cosine_similarity(embed1[:, tf.newaxis], embed2[tf.newaxis, ...]) / self._temperature
         return sim_mat
+
+
+class EmbeddingFGSMWrapper(keras.Model):
+    def __init__(self, model, embeddings, epsilon=0.1, **kwargs):
+        if not hasattr(model, "loss"):
+            raise AttributeError(f"Your model {model.name} should be compile with a loss.")
+
+        super(EmbeddingFGSMWrapper, self).__init__(**kwargs)
+        self.model = model
+        self.embeddings = embeddings
+        self.epsilon = epsilon
+        
+        self.compile(
+            loss=self.model.loss,
+            optimizer=self.model.optimizer
+        )
+
+    @tf.function
+    def train_step(self, data):
+        x, y, sample_weight = unpack_x_y_sample_weight(data)
+
+        with tf.GradientTape() as tape:
+            y_pred = self.model(x)
+            loss = self.compiled_loss(
+                y, y_pred, sample_weight, regularization_losses=self.model.losses)
+        g = tf.zeros_like(self.embeddings, dtype=tf.float32) + tape.gradient(loss, self.embeddings)
+
+        self.embeddings.assign_add(self.epsilon * g)
+        res = self.model.train_step(data)
+        self.embeddings.assign_sub(self.epsilon * g)
+
+        return res
+
+    def call(self, inputs, mask=None, training=None):
+        return self.model(inputs, mask=mask, training=training)

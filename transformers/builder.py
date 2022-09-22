@@ -1,7 +1,7 @@
 import json
 import os
 import tensorflow as tf
-from tensorflow_unicorn.layers.transformers import *
+from tensorflow_unicorn.modules.transformers import *
 
 
 def get_config(filename):
@@ -61,7 +61,7 @@ class BertModel(tf.keras.Model):
         self._config = config
         digest_config(self, config)
 
-        self.composite_embeddings = CompositeEmbedding(
+        self.composite_embeddings = BertEmbedding(
             vocab_size=self.vocab_size,
             hidden_size=self.hidden_size,
             type_vocab_size=self.type_vocab_size,
@@ -80,15 +80,30 @@ class BertModel(tf.keras.Model):
                 attention_probs_dropout_prob=self.attention_probs_dropout_prob, name=f"encoder/layer_{i}"
             ))
 
-    def call(self, inputs, training=None):
+    def call(self, inputs, mask=None, training=None):
         if not tf.nest.is_nested(inputs):
-            inputs = [inputs, tf.zeros_like(inputs, dtype=tf.int32)]
+            input_ids = inputs
+            token_type_ids = None
+        else:
+            input_ids = inputs["input_ids"]
+            token_type_ids = inputs.get("token_type_ids", None)
 
-        x = self.composite_embeddings(inputs)
-        for block in self.encoder:
-            x = block(x, training=training)
+        if token_type_ids is None:
+            token_type_ids = tf.zeros_like(input_ids)
+
+        x = self.composite_embeddings([input_ids, token_type_ids])
+
+        if mask is not None:
+            for block in self.encoder:
+                x = block(x, mask=mask, training=training)
+        else:
+            for block in self.encoder:
+                x = block(x, training=training)
 
         return x
+
+    def get_word_embedding(self):
+        return self.composite_embeddings.word_embedding
 
 
 def get_bert(hidden_size=768, hidden_act="gelu",
@@ -104,7 +119,7 @@ def get_bert(hidden_size=768, hidden_act="gelu",
         tf.keras.layers.Input(shape=(None,), dtype=tf.int32,
                               name=name + "/segment_ids_input")
     )
-    composite_embedding = CompositeEmbedding(
+    composite_embedding = BertEmbedding(
         vocab_size=vocab_size, hidden_size=hidden_size,
         type_vocab_size=type_vocab_size, initializer_range=initializer_range,
         max_position_embeddings=max_position_embeddings, name=name + "/embeddings"

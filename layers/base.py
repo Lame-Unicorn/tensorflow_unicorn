@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow import keras
 
 
 def get_FeedForwardNN(layer_input, units,
@@ -11,17 +12,17 @@ def get_FeedForwardNN(layer_input, units,
     output = layer_input
     for i in range(len(units)):
         if i == len(units) - 1 and no_output_activation:
-            output = tf.keras.layers.Dense(
+            output = keras.layers.Dense(
                 units[i], name=f"{name}/dense_{i+1}", kernel_initializer=kernel_initializer
             )(output)
         else:
-            output = tf.keras.layers.Dense(
+            output = keras.layers.Dense(
                 units[i], name=f"{name}/dense_{i+1}", activation=activation, kernel_initializer=kernel_initializer
             )(output)
     return output
 
 
-class FeedForwardNN(tf.keras.layers.Layer):
+class FeedForwardNN(keras.layers.Layer):
     def __init__(self, units,
                  activation="relu", depth=1,
                  no_output_activation=False, kernel_initializer='glorot_uniform', **kwargs):
@@ -35,11 +36,11 @@ class FeedForwardNN(tf.keras.layers.Layer):
         for i in range(len(units)):
             if i == len(units) - 1 and no_output_activation:
                 self._denses.append(
-                    tf.keras.layers.Dense(units[i], name=f"dense_{i+1}", kernel_initializer=kernel_initializer)
+                    keras.layers.Dense(units[i], name=f"dense_{i+1}", kernel_initializer=kernel_initializer)
                 )
             else:
                 self._denses.append(
-                    tf.keras.layers.Dense(
+                    keras.layers.Dense(
                         units[i], name=f"dense_{i+1}", activation=activation, kernel_initializer=kernel_initializer
                     )
                 )
@@ -51,7 +52,7 @@ class FeedForwardNN(tf.keras.layers.Layer):
         return output
 
 
-class FieldEmbedding(tf.keras.layers.Layer):
+class FieldEmbedding(keras.layers.Layer):
     def __init__(self, embed_dim, input_dims, **kwargs):
         self.embed_dim = embed_dim
         self.input_dims = input_dims
@@ -60,7 +61,7 @@ class FieldEmbedding(tf.keras.layers.Layer):
         self.n_fields = len(input_dims)
         self.embedding_layers = []
         for i in range(self.n_fields):
-            self.embedding_layers.append(tf.keras.layers.Embedding(input_dim=input_dims[i], output_dim=embed_dim))
+            self.embedding_layers.append(keras.layers.Embedding(input_dim=input_dims[i], output_dim=embed_dim))
 
     def call(self, inputs, **kwargs):
         return tf.stack([self.embedding_layers[i](inputs[:, i]) for i in range(self.n_fields)], axis=1)

@@ -1,10 +1,12 @@
 import tensorflow as tf
+from tensorflow import keras
 
 
-class FMCrossing(tf.keras.layers.Layer):
+class FMCrossing(keras.layers.Layer):
     """Factorization Machines - Rendle 2010.
     See https://www.csie.ntu.edu.tw/~b97053/paper/Rendle2010FM.pdf or
-    [因子分解机（Factorization Machines）](http://www.lameunicorn.cn/2021/09/23/%E5%9B%A0%E5%AD%90%E5%88%86%E8%A7%A3%E6%9C%BA%EF%BC%88Factorization-Machines%EF%BC%89/)
+    [因子分解机（Factorization Machines）]
+    (http://www.lameunicorn.cn/2021/09/23/%E5%9B%A0%E5%AD%90%E5%88%86%E8%A7%A3%E6%9C%BA%EF%BC%88Factorization-Machines%EF%BC%89/)
     for more details about FM.
 
     FMCrossing take field embeddings as input and produce field-level feature crossing.
@@ -23,7 +25,7 @@ class FMCrossing(tf.keras.layers.Layer):
         x = tf.linalg.matmul(x, x, transpose_b=True)
         # Shape of x: (batch_size, input_size, input_size)
 
-        x = tf.keras.layers.Flatten()(
+        x = keras.layers.Flatten()(
             tf.reverse(x, axis=[1])
         )
         # Shape of x: (batch_size, input_size**2)
@@ -33,7 +35,7 @@ class FMCrossing(tf.keras.layers.Layer):
         return x
 
 
-class DCNCrossing(tf.keras.layers.Layer):
+class DCNCrossing(keras.layers.Layer):
     """Deep & Cross Network for Ad Click Predictions - Wang et al. 2017.
     See [arXiv:1708.05123](https://arxiv.org/abs/1708.05123) or
     [Wide&Deep联合训练模型](http://www.lameunicorn.cn/2021/10/27/Wide-Deep%E8%81%94%E5%90%88%E8%AE%AD%E7%BB%83%E6%A8%A1%E5%9E%8B/)
@@ -52,13 +54,13 @@ class DCNCrossing(tf.keras.layers.Layer):
         super(DCNCrossing, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        self.dense = tf.keras.layers.Dense(input_shape[0][-1], activation=None)
+        self.dense = keras.layers.Dense(input_shape[0][-1], activation=None)
 
     def call(self, inputs):
         return self.dense(inputs[0]) * inputs[1] + inputs[0]
 
 
-class AUGRUCell(tf.keras.layers.Layer):
+class AUGRUCell(keras.layers.Layer):
     """Deep Interest Evolution Network for Click-Through Rate Prediction - Zhou et al. 2019.
     See https://doi.org/10.1609/aaai.v33i01.33015941 or
     [Attention与推荐系统][http://www.lameunicorn.cn/2021/11/04/Attention%E4%B8%8E%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/]
@@ -113,14 +115,14 @@ class AUGRUCell(tf.keras.layers.Layer):
             matrix_inner, 2, axis=-1
         )
 
-        z = tf.keras.activations.hard_sigmoid(x_z + recurrent_z) * inputs[1]
-        r = tf.keras.activations.hard_sigmoid(x_r + recurrent_r)
+        z = keras.activations.hard_sigmoid(x_z + recurrent_z) * inputs[1]
+        r = keras.activations.hard_sigmoid(x_r + recurrent_r)
 
         recurrent_h = tf.tensordot(
             r * h_tm1, self.recurrent_kernel[:, 2 * self.units:], axes=1
         )
 
-        hh = tf.keras.activations.tanh(x_h + recurrent_h)
+        hh = keras.activations.tanh(x_h + recurrent_h)
 
         h = z * h_tm1 + (1 - z) * hh
         new_state = [h] if tf.nest.is_nested(states) else h
@@ -132,7 +134,7 @@ class AUGRUCell(tf.keras.layers.Layer):
         return config
 
 
-class CINLayer(tf.keras.layers.Layer):
+class CINLayer(keras.layers.Layer):
     """xDeepFM: Combining Explicit and Implicit Feature Interactions for Recommender Systems - Lian et al. 2018.
     See https://arxiv.org/abs/1803.05170 for more details about Compressed Interaction Network (CIN) and xDeepFM.
 
@@ -164,7 +166,7 @@ class CINLayer(tf.keras.layers.Layer):
         return config
 
 
-class CIN(tf.keras.layers.Layer):
+class CIN(keras.layers.Layer):
     def __init__(self, compress_dims, **kwargs):
         self.compress_dims = compress_dims
         super(CIN, self).__init__(**kwargs)
@@ -194,7 +196,7 @@ class CIN(tf.keras.layers.Layer):
         return config
 
 
-class AttentionScore(tf.keras.layers.Layer):
+class AttentionScore(keras.layers.Layer):
     """Deep Interest Evolution Network for Click-Through Rate Prediction - Zhou et al. 2019.
     See https://doi.org/10.1609/aaai.v33i01.33015941 or
     [Attention与推荐系统][http://www.lameunicorn.cn/2021/11/04/Attention%E4%B8%8E%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/]
@@ -208,21 +210,21 @@ class AttentionScore(tf.keras.layers.Layer):
     def __init__(self, value_dim, **kwargs):
         super(AttentionScore, self).__init__(**kwargs)
         self.value_dim = value_dim
-        self.kernel = tf.keras.layers.Dense(value_dim, activation=None, use_bias=False)
+        self.kernel = keras.layers.Dense(value_dim, activation=None, use_bias=False)
 
     def call(self, inputs):
-        attention_logits = tf.keras.layers.dot(
+        attention_logits = keras.layers.dot(
             [self.kernel(inputs[0]), inputs[1]], axes=[1, 2]
         )
         return tf.expand_dims(tf.nn.softmax(attention_logits, axis=-1), axis=-1)
 
     def get_config(self):
-        config = super(AUGRUCell, self).get_config()
+        config = super(AttentionScore, self).get_config()
         config.update({'value_dim': self.value_dim})
         return config
 
 
-class AUGRU(tf.keras.layers.Layer):
+class AUGRU(keras.layers.Layer):
     """Deep Interest Evolution Network for Click-Through Rate Prediction - Zhou et al. 2019.
     See https://doi.org/10.1609/aaai.v33i01.33015941 or
     [Attention与推荐系统][http://www.lameunicorn.cn/2021/11/04/Attention%E4%B8%8E%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/]
@@ -240,7 +242,7 @@ class AUGRU(tf.keras.layers.Layer):
         self.stateful = stateful
         super(AUGRU, self).__init__(**kwargs)
 
-        self.rnn = tf.keras.layers.RNN(
+        self.rnn = keras.layers.RNN(
             AUGRUCell(self.units),
             return_sequences=return_sequences,
             return_state=return_state,
@@ -259,7 +261,7 @@ class AUGRU(tf.keras.layers.Layer):
         return res
 
     def get_config(self):
-        config = super(AUGRUCell, self).get_config()
+        config = super(AUGRU, self).get_config()
         config.update({
             "units": self.units,
             "return_attention_weights": self.return_attention_weights,

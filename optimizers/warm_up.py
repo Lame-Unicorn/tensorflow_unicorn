@@ -11,7 +11,7 @@ class WarmUpSchedule(schedules.LearningRateSchedule):
                  warm_up_lr=0.001,
                  end_lr=0.00001,
                  warm_up_pattern='linear',
-                 decay_pattern='exp',
+                 decay_pattern='linear',
                  **kwargs):
         super(WarmUpSchedule, self).__init__(**kwargs)
         self.total_steps = total_steps
